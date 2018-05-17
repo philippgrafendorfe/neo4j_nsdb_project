@@ -8,6 +8,7 @@ import twitter data
 """
 
 import twitter
+from py2neo.database import Node, Relationship
 
 api = twitter.Api(consumer_key='Ievh0b33YTmj0ozWPle0nkGpv',
                   consumer_secret='f9JOjYhCWkLV0ZcmhsRS8gteKWebP8OPHyFxLCSAc3sYDy5gzR',
