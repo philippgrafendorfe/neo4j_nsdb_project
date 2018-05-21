@@ -8,33 +8,66 @@ import twitter data
 """
 
 import twitter
-from py2neo.database import Node, Relationship, Graph, authenticate
+from py2neo.database import Node, Relationship, Graph, authenticate, NodeSelector
 
-api = twitter.Api(consumer_key='Ievh0b33YTmj0ozWPle0nkGpv',
-                  consumer_secret='f9JOjYhCWkLV0ZcmhsRS8gteKWebP8OPHyFxLCSAc3sYDy5gzR',
-                  access_token_key='16929023-PBlYF3rWKksJVfrdMU0r4jhQyruVLqo74rovQLjiO',
-                  access_token_secret='ggADQp1PErXNmClabhbrs1nxxR2gorwtl0h8202V9ipqQ')
+from py2neo.packages.httpstream import http
+http.socket_timeout = 9999
+
+with open("twitter_api.txt", "r") as file:
+    credentials = file.read().splitlines()
+
+credentials = {"consumer_key": credentials[0],
+               "consumer_secret": credentials[1],
+               "access_token_key": credentials[2],
+               "access_token_secret": credentials[3]}
+
+
+api = twitter.Api(consumer_key=credentials["consumer_key"],
+                  consumer_secret=credentials["consumer_secret"],
+                  access_token_key=credentials["access_token_key"],
+                  access_token_secret=credentials["access_token_secret"])
 
 print(api.VerifyCredentials())
 
-user = 'Philipp_G'
-statuses = api.GetUserTimeline(screen_name=user)
-
-print([s.text for s in statuses])
-
-users = api.GetFriends()
-users[0]
-users[0].name
-
-authenticate("hobby-baeadknhlicigbkehaeddfal.dbs.graphenedb.com:24786", "data-importer", "b.Mc1xVNF39CKC.KlbOB8CvSSplBxsE")
+authenticate("hobby-baeadknhlicigbkehaeddfal.dbs.graphenedb.com:24786"
+             , "reader"
+             , "b.zVpb0oSx8xsJ.HPPfr69GVWg33Ra7")
 graph = Graph("bolt://hobby-baeadknhlicigbkehaeddfal.dbs.graphenedb.com:24786",
-              user="data-importer",
-              password="b.Mc1xVNF39CKC.KlbOB8CvSSplBxsE", bolt=True,
-              secure=True, http_port=24789, https_port=24780)
+              user="reader",
+              password="b.zVpb0oSx8xsJ.HPPfr69GVWg33Ra7"
+              , bolt=True
+              , secure=True
+              , http_port=24789
+              , https_port=24780
+              )
+
+## generate the primary node
+primary_user = api.GetUser(screen_name='elonmusk').AsDict()
 
 
-graph.run("CREATE (n:Person {name:'Philipp'})")
-result = graph.run("MATCH (n:Person) RETURN n")
-for record in result:
-    print(record)
+## generate the depending nodes
+network_ids = api.GetFriendIDs(screen_name='elonmusk')
+network_ids.append(primary_user['id'])
+
+
+for friend in network_ids:
+
+    user_x_data = api.GetUser(user_id=friend).AsDict()
+    user_x = {'id': "'{}'".format(user_x_data['id']), 'name': "'{}'".format(user_x_data['name'])}
+    user_x_string = str(user_x).replace("'", "").replace("\\","/")
+    graph.run("CREATE (n:Person {})".format(user_x_string))
+
+
+for user in network_ids:
+
+    ## generate all relationships
+    user_x_friends = api.GetFriendIDs(user_id=user)
+    user_x_connections = list(set(network_ids).intersection(set(user_x_friends)))
+
+    for connection in user_x_connections:
+
+        graph.run("MATCH (a:Person),(b:Person)"
+                  "WHERE a.id = '{0}' AND b.id = '{1}'"
+                  "CREATE (a)-[r:FOLLOWS]->(b)"
+                  "RETURN type(r)".format(user, connection))
 
