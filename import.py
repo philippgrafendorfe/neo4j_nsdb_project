@@ -58,10 +58,10 @@ for friend in network_ids:
 
     user_x_data = api.GetUser(user_id=friend).AsDict()
     user_x = {'id': "'{}'".format(user_x_data['id']), 'name': "'{}'".format(user_x_data['name'])}
-    user_x_string = str(user_x).replace("'", "").replace("\\","/")
+    user_x_string = str(user_x).replace("'", "").replace("\\", "/")
     graph.run("CREATE (n:Person {})".format(user_x_string))
 
-## generate all relations
+## generate all FOLLOWS relations
 for user in network_ids:
 
     user_x_friends = api.GetFriendIDs(user_id=user)
