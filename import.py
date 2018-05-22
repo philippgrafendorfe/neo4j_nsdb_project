@@ -27,29 +27,33 @@ api = twitter.Api(consumer_key=credentials["consumer_key"],
                   access_token_key=credentials["access_token_key"],
                   access_token_secret=credentials["access_token_secret"])
 
-print(api.VerifyCredentials())
+# print(api.VerifyCredentials())
+
+with open("neo4j_pwd.txt", "r") as file:
+    pwd = file.read().splitlines()
 
 authenticate("hobby-baeadknhlicigbkehaeddfal.dbs.graphenedb.com:24786"
              , "reader"
-             , "b.zVpb0oSx8xsJ.HPPfr69GVWg33Ra7")
+             , pwd[0])
 graph = Graph("bolt://hobby-baeadknhlicigbkehaeddfal.dbs.graphenedb.com:24786",
               user="reader",
-              password="b.zVpb0oSx8xsJ.HPPfr69GVWg33Ra7"
+              password=pwd[0]
               , bolt=True
               , secure=True
               , http_port=24789
               , https_port=24780
               )
 
-## generate the primary node
+## get the primary node
 primary_user = api.GetUser(screen_name='elonmusk').AsDict()
 
 
 ## generate the depending nodes
 network_ids = api.GetFriendIDs(screen_name='elonmusk')
+## add the primary id
 network_ids.append(primary_user['id'])
 
-
+## generate all nodes
 for friend in network_ids:
 
     user_x_data = api.GetUser(user_id=friend).AsDict()
@@ -57,10 +61,9 @@ for friend in network_ids:
     user_x_string = str(user_x).replace("'", "").replace("\\","/")
     graph.run("CREATE (n:Person {})".format(user_x_string))
 
-
+## generate all relations
 for user in network_ids:
 
-    ## generate all relationships
     user_x_friends = api.GetFriendIDs(user_id=user)
     user_x_connections = list(set(network_ids).intersection(set(user_x_friends)))
 
@@ -70,4 +73,3 @@ for user in network_ids:
                   "WHERE a.id = '{0}' AND b.id = '{1}'"
                   "CREATE (a)-[r:FOLLOWS]->(b)"
                   "RETURN type(r)".format(user, connection))
-
