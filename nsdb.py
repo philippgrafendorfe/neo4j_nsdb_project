@@ -4,12 +4,6 @@
 # start: 180517
 # end:
 
-import twitter
-import pandas as pd
-import numpy as np
-
-from py2neo.database import Graph, authenticate
-
 
 def get_all_friend_ids_from_screen_name(twitter_api, screen_name):
     """

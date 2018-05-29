@@ -54,13 +54,13 @@ graph = Graph("bolt://hobby-baeadknhlicigbkehaeddfal.dbs.graphenedb.com:24786"
               , https_port=24780
               )
 
-network = nsdb.get_all_friend_ids_from_screen_name()
+network = nsdb.get_all_friend_ids_from_screen_name(api, "elon_musk")
 
 for friend in iter(network):
-    nsdb.create_twitter_user(user_id=friend)
+    nsdb.create_twitter_user(friend, graph, api)
 
 for user in iter(network):
-    nsdb.create_twitter_friend_relations(user_id=user)
+    nsdb.create_twitter_friend_relations(user, network, graph, api)
 
 
 # import simulated data
