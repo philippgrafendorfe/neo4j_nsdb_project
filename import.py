@@ -53,39 +53,64 @@ graph = Graph("bolt://hobby-baeadknhlicigbkehaeddfal.dbs.graphenedb.com:24786"
               , https_port=24780
               )
 
-# get the primary node; as a possible starting point we need a user with some but not too much friends;
-# a friend in twitter is the recepient of a "FOLLOWS" relation.
-primary_user = api.GetUser(screen_name='elonmusk').AsDict()
 
-# generate the depending nodes; all friend nodes from elon musk; 51 users
-network_ids = api.GetFriendIDs(screen_name='elonmusk')
-# add the primary id
-network_ids.append(primary_user['id'])
+def get_all_friend_ids_from_screen_name(screen_name="elon_musk"):
+    """
+    a friend in twitter is the recepient of a "FOLLOWS" relation.
+    :param screen_name: string; should be fetched via twitter web interface
+    :return: list of ids from a network with one person in the 'center' of that network
+    """
+    primary_user = api.GetUser(screen_name=screen_name).AsDict()
+    network_ids = api.GetFriendIDs(screen_name=screen_name)
+    network_ids.append(primary_user['id'])
 
-# generate all twitter nodes in the graph db via cypher query.
-for friend in network_ids:
+    return network_ids
 
-    user_data = api.GetUser(user_id=friend).AsDict()
+
+def create_twitter_user(user_id, neo4j_graph=graph, twitter_api=api):
+    """
+    creates twitter user as node in neo4j
+    :param user_id: twitter user id
+    :param neo4j_graph: neo4j graph db object
+    :param twitter_api: api object
+    :return: reates twitter user as node in neo4j
+    """
+    user_data = twitter_api.GetUser(user_id=user_id).AsDict()
     user = {'id': "'{}'".format(user_data['id']),
             'name': "'{}'".format(user_data['name']),
             'data_origin': "'twitter'"}
     user_string = str(user).replace("'", "").replace("\\", "/")
-    graph.run("CREATE (n:Person {})".format(user_string))
+    neo4j_graph.run("CREATE (n:Person {})".format(user_string))
 
-# generate all twitter FOLLOWS relations
-# create an iterable so that we can continue the db push after 100 api calls are used
-network_ids = iter(network_ids)
-for user in network_ids:
 
-    user_friends = api.GetFriendIDs(user_id=user)
-    user_connections = iter(set(network_ids).intersection(set(user_friends)))
+network = get_all_friend_ids_from_screen_name()
+
+
+def create_twitter_friend_relations(user_id, neo4j_graph=graph, twitter_api=api, network=network):
+    """
+    creates all twitter friend relations for a given user in the neo4j graph database
+    :param user_id:
+    :param neo4j_graph:
+    :param twitter_api:
+    :param network:
+    :return:
+    """
+    user_friends = twitter_api.GetFriendIDs(user_id=user_id)
+    user_connections = iter(set(network).intersection(set(user_friends)))
 
     for connection in user_connections:
 
-        graph.run("MATCH (a:Person),(b:Person)"
-                  "WHERE a.id = '{0}' AND b.id = '{1}'"
-                  "CREATE (a)-[r:FOLLOWS]->(b)"
-                  "RETURN type(r)".format(user, connection))
+        neo4j_graph.run("MATCH (a:Person),(b:Person)"
+                        "WHERE a.id = '{0}' AND b.id = '{1}'"
+                        "CREATE (a)-[r:FOLLOWS]->(b)"
+                        "RETURN type(r)".format(user, connection))
+
+
+for friend in iter(network):
+    create_twitter_user(user_id=friend)
+
+for user in iter(network):
+    create_twitter_friend_relations(user_id=user)
 
 
 # import simulated data
