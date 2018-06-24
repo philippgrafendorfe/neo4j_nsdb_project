@@ -14,11 +14,19 @@ import nsdb
 import twitter
 import pandas as pd
 import numpy as np
+import threading
 
 from py2neo.database import Graph, authenticate
 # from py2neo.packages.httpstream import http
 # http.socket_timeout = 9999
 
+def hello():
+    print('hello')
+
+
+t = threading.Timer(5.0, hello)
+t.start()
+t.cancel()
 
 # import original data from twitter
 # ====================================================================================================
